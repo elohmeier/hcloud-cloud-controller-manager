@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 
 	hrobotmodels "github.com/syself/hrobot-go/models"
 	corev1 "k8s.io/api/core/v1"
@@ -211,17 +212,34 @@ func hcloudNodeAddresses(addressFamily config.AddressFamily, networkID int64, se
 		}
 	}
 
-	// Add private IP from network if network is specified
-	if networkID > 0 {
-		for _, privateNet := range server.PrivateNet {
-			if privateNet.Network.ID == networkID {
-				addresses = append(
-					addresses,
-					corev1.NodeAddress{Type: corev1.NodeInternalIP, Address: privateNet.IP.String()},
-				)
-			}
-		}
-	}
+	// // Add private IP from network if network is specified
+	// if networkID > 0 {
+	// 	for _, privateNet := range server.PrivateNet {
+	// 		if privateNet.Network.ID == networkID {
+	// 			addresses = append(
+	// 				addresses,
+	// 				corev1.NodeAddress{Type: corev1.NodeInternalIP, Address: privateNet.IP.String()},
+	// 			)
+	// 		}
+	// 	}
+	// }
+
+    // try to get the (first) IPv4 from DNS
+    var fqdn = server.Name + ".node.consul"
+
+    ips, err := net.LookupIP(fqdn)
+
+    if err == nil {
+        for _, ip := range ips {
+            if ip.To4() != nil {
+                addresses = append(
+                    addresses,
+                    corev1.NodeAddress{Type: corev1.NodeInternalIP, Address: ip.String()},
+                )
+            }
+        }
+    }
+
 	return addresses
 }
 
@@ -249,6 +267,22 @@ func robotNodeAddresses(addressFamily config.AddressFamily, server *hrobotmodels
 			corev1.NodeAddress{Type: corev1.NodeExternalIP, Address: server.ServerIP},
 		)
 	}
+
+    // try to get the (first) IPv4 from DNS
+    var fqdn = server.Name + ".node.consul"
+
+    ips, err := net.LookupIP(fqdn)
+
+    if err == nil {
+        for _, ip := range ips {
+            if ip.To4() != nil {
+                addresses = append(
+                    addresses,
+                    corev1.NodeAddress{Type: corev1.NodeInternalIP, Address: ip.String()},
+                )
+            }
+        }
+    }
 
 	return addresses
 }
